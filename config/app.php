@@ -146,6 +146,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Cache Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Cache TTL settings for different parts of the application
+    |
+    */
+
+    'cache' => [
+        'products_ttl' => env('PRODUCTS_CACHE_TTL', 600),
+        'search_ttl' => env('SEARCH_CACHE_TTL', 300),
+        'orders_ttl' => env('ORDERS_CACHE_TTL', 300),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Autoloaded Service Providers
     |--------------------------------------------------------------------------
     |

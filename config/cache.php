@@ -108,4 +108,31 @@ return [
 
     'prefix' => env('CACHE_PREFIX', Str::slug(env('APP_NAME', 'laravel'), '_').'_cache_'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Custom Cache Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Custom cache settings for different parts of the application
+    |
+    */
+
+    'custom' => [
+        'products' => [
+            'ttl' => env('PRODUCTS_CACHE_TTL', 600), // 10 minutes
+            'prefix' => 'products:',
+            'tags' => ['products', 'api'],
+        ],
+        'search' => [
+            'ttl' => env('SEARCH_CACHE_TTL', 300), // 5 minutes
+            'prefix' => 'search:',
+            'tags' => ['search', 'api'],
+        ],
+        'orders' => [
+            'ttl' => env('ORDERS_CACHE_TTL', 300), // 5 minutes
+            'prefix' => 'orders:',
+            'tags' => ['orders', 'api'],
+        ],
+    ],
+
 ];
