@@ -1,0 +1,594 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Laravel Auto Crud (Laravel)",
+        "version": "1.0.0",
+        "description": "This is an automatic generated Swagger JSON file with full CRUD operations"
+    },
+    "servers": [
+        {
+            "url": "http://localhost/api",
+            "description": "Server"
+        }
+    ],
+    "paths": {
+        "/products": {
+            "post": {
+                "summary": "Create products",
+                "operationId": "create_products",
+                "tags": [
+                    "Products"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Products"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Products"
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "summary": "Get products",
+                "operationId": "get_products",
+                "tags": [
+                    "Products"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Products"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/products/{id}": {
+            "patch": {
+                "summary": "Update products",
+                "operationId": "update_products",
+                "tags": [
+                    "Products"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Products"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Products"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete products",
+                "operationId": "delete_products",
+                "tags": [
+                    "Products"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Products"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "summary": "Get single products",
+                "operationId": "get_single_products",
+                "tags": [
+                    "Products"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Products"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/orders": {
+            "post": {
+                "summary": "Create orders",
+                "operationId": "create_orders",
+                "tags": [
+                    "Orders"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Orders"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Orders"
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "summary": "Get orders",
+                "operationId": "get_orders",
+                "tags": [
+                    "Orders"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Orders"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/orders/{id}": {
+            "patch": {
+                "summary": "Update orders",
+                "operationId": "update_orders",
+                "tags": [
+                    "Orders"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Orders"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Orders"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete orders",
+                "operationId": "delete_orders",
+                "tags": [
+                    "Orders"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Orders"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "summary": "Get single orders",
+                "operationId": "get_single_orders",
+                "tags": [
+                    "Orders"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Orders"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/order_products": {
+            "post": {
+                "summary": "Create order_products",
+                "operationId": "create_order_products",
+                "tags": [
+                    "Order_products"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Order_products"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Order_products"
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "summary": "Get order_products",
+                "operationId": "get_order_products",
+                "tags": [
+                    "Order_products"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Order_products"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/order_products/{id}": {
+            "patch": {
+                "summary": "Update order_products",
+                "operationId": "update_order_products",
+                "tags": [
+                    "Order_products"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Order_products"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Order_products"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "summary": "Delete order_products",
+                "operationId": "delete_order_products",
+                "tags": [
+                    "Order_products"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Order_products"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "get": {
+                "summary": "Get single order_products",
+                "operationId": "get_single_order_products",
+                "tags": [
+                    "Order_products"
+                ],
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Order_products"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "Products": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "example": "Example Value"
+                    },
+                    "description": {
+                        "type": "string",
+                        "example": "Example Value"
+                    },
+                    "price": {
+                        "type": "number",
+                        "example": 1.1
+                    },
+                    "stock": {
+                        "type": "integer",
+                        "example": 1
+                    }
+                },
+                "required": [
+                    "name",
+                    "description",
+                    "price",
+                    "stock"
+                ]
+            },
+            "Orders": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "total_amount": {
+                        "type": "number",
+                        "example": 1.1
+                    },
+                    "status": {
+                        "type": "string",
+                        "example": "Example Value"
+                    }
+                },
+                "required": [
+                    "user_id",
+                    "total_amount",
+                    "status"
+                ]
+            },
+            "Order_products": {
+                "type": "object",
+                "properties": {
+                    "order_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "product_id": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "price": {
+                        "type": "number",
+                        "example": 1.1
+                    }
+                },
+                "required": [
+                    "order_id",
+                    "product_id",
+                    "quantity",
+                    "price"
+                ]
+            }
+        }
+    }
+}

@@ -15,21 +15,9 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-// Authentication Routes (Public)
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
 
-// Protected Routes (Require Authentication)
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::get('/user', [AuthController::class, 'user']);
-});
+Route::apiResource('/products', App\Http\Controllers\API\ProductController::class);
 
-// Test route to check API is working
-Route::get('/test', function () {
-    return response()->json([
-        'success' => true,
-        'message' => 'API is working!',
-        'timestamp' => now(),
-    ]);
-});
+Route::apiResource('/orders', App\Http\Controllers\API\OrderController::class);
+
+Route::apiResource('/order_products', App\Http\Controllers\API\OrderProductController::class);

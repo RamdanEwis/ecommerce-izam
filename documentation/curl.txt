@@ -1,0 +1,230 @@
+=====================Product=====================
+curl --location 'http://localhost/api/products' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request POST \
+--data '{
+    "name": "value",
+    "description": "value",
+    "price": "value",
+    "stock": "value"
+}'
+
+curl --location 'http://localhost/api/products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request PATCH \
+--data '{
+    "name": "value",
+    "description": "value",
+    "price": "value",
+    "stock": "value"
+}'
+
+curl --location 'http://localhost/api/products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request DELETE
+
+curl --location 'http://localhost/api/products' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+curl --location 'http://localhost/api/products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+=====================Product=====================
+=====================Order=====================
+curl --location 'http://localhost/api/orders' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request POST \
+--data '{
+    "user_id": "value",
+    "total_amount": "value",
+    "status": "value"
+}'
+
+curl --location 'http://localhost/api/orders/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request PATCH \
+--data '{
+    "user_id": "value",
+    "total_amount": "value",
+    "status": "value"
+}'
+
+curl --location 'http://localhost/api/orders/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request DELETE
+
+curl --location 'http://localhost/api/orders' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+curl --location 'http://localhost/api/orders/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+=====================Order=====================
+=====================OrderProduct=====================
+curl --location 'http://localhost/api/order_products' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request POST \
+--data '{
+    "order_id": "value",
+    "product_id": "value",
+    "quantity": "value",
+    "price": "value"
+}'
+
+curl --location 'http://localhost/api/order_products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request PATCH \
+--data '{
+    "order_id": "value",
+    "product_id": "value",
+    "quantity": "value",
+    "price": "value"
+}'
+
+curl --location 'http://localhost/api/order_products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request DELETE
+
+curl --location 'http://localhost/api/order_products' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+curl --location 'http://localhost/api/order_products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+=====================OrderProduct=====================
+=====================Product=====================
+curl --location 'http://localhost/api/products' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request POST \
+--data '{
+    "name": "value",
+    "description": "value",
+    "price": "value",
+    "stock": "value"
+}'
+
+curl --location 'http://localhost/api/products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request PATCH \
+--data '{
+    "name": "value",
+    "description": "value",
+    "price": "value",
+    "stock": "value"
+}'
+
+curl --location 'http://localhost/api/products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request DELETE
+
+curl --location 'http://localhost/api/products' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+curl --location 'http://localhost/api/products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+=====================Product=====================
+=====================Order=====================
+curl --location 'http://localhost/api/orders' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request POST \
+--data '{
+    "user_id": "value",
+    "total_amount": "value",
+    "status": "value"
+}'
+
+curl --location 'http://localhost/api/orders/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request PATCH \
+--data '{
+    "user_id": "value",
+    "total_amount": "value",
+    "status": "value"
+}'
+
+curl --location 'http://localhost/api/orders/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request DELETE
+
+curl --location 'http://localhost/api/orders' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+curl --location 'http://localhost/api/orders/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+=====================Order=====================
+=====================OrderProduct=====================
+curl --location 'http://localhost/api/order_products' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request POST \
+--data '{
+    "order_id": "value",
+    "product_id": "value",
+    "quantity": "value",
+    "price": "value"
+}'
+
+curl --location 'http://localhost/api/order_products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request PATCH \
+--data '{
+    "order_id": "value",
+    "product_id": "value",
+    "quantity": "value",
+    "price": "value"
+}'
+
+curl --location 'http://localhost/api/order_products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request DELETE
+
+curl --location 'http://localhost/api/order_products' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+curl --location 'http://localhost/api/order_products/:id' \
+--header 'Accept: application/json' \
+--header 'Content-Type: application/json' \
+--request GET
+
+=====================OrderProduct=====================
