@@ -193,11 +193,15 @@ APP_DEBUG=false
    - HTTPS required in production
    - CORS policies are configured for frontend access
 
-## Additional Resources
+## API Documentation
 
-- [API Documentation (Swagger)](./swagger-api.json)
-- [Postman Collection](./postman.json)
-- [cURL Examples](./curl.txt)
+### Interactive Documentation
+- **SwaggerHub**: [E-commerce API Documentation](https://app.swaggerhub.com/apis/DEVRAMDANEWIS/e-commerce_api_documentation/1.0.0)
+
+### Local Documentation Files
+- [Swagger JSON](./documentation/swagger-api.json) - OpenAPI specification file
+- [Postman Collection](./documentation/postman.json) - Ready-to-use Postman collection
+- [cURL Examples](./documentation/curl.txt) - Command-line examples
 
 ## Error Handling
 
