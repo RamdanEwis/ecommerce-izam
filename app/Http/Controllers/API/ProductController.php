@@ -25,10 +25,26 @@ class ProductController extends Controller
     public function __construct(ProductService $productService)
     {
         $this->productService = $productService;
+        // Add auth middleware only to protected routes
+        $this->middleware('auth:sanctum')->only([
+            'store',
+            'update',
+            'destroy',
+            'updateStock',
+            'bulkUpdate',
+            'statistics',
+            'cacheStatistics'
+        ]);
+        // Add admin middleware to admin-only routes
+        $this->middleware('admin')->only([
+            'statistics',
+            'cacheStatistics',
+            'bulkUpdate'
+        ]);
     }
 
     /**
-     * Display a listing of the resource.
+     * Display a listing of products.
      *
      * @param Request $request
      * @return JsonResponse
@@ -50,10 +66,8 @@ class ProductController extends Controller
                 'featured'
             ]);
 
-            $perPage = min($request->get('per_page', 2000), 2000);
-
+            $perPage = min($request->get('per_page', 15), 100);
             $products = $this->productService->getProductsForApi($filters, $perPage);
-
 
             return ResponseBuilder::paginated($products, 'Products retrieved successfully');
         } catch (\Exception $e) {
@@ -62,7 +76,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a newly created product in storage.
      *
      * @param StoreProductRequest $request
      * @return JsonResponse
@@ -82,7 +96,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Display the specified resource.
+     * Display the specified product.
      *
      * @param int $id
      * @return JsonResponse
@@ -91,7 +105,6 @@ class ProductController extends Controller
     {
         try {
             $product = $this->productService->getProductForApi($id);
-
             return ResponseBuilder::success($product, 'Product retrieved successfully');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ResponseBuilder::notFound('Product not found');
@@ -101,7 +114,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Update the specified resource in storage.
+     * Update the specified product in storage.
      *
      * @param UpdateProductRequest $request
      * @param int $id
@@ -124,7 +137,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Remove the specified resource from storage.
+     * Remove the specified product from storage.
      *
      * @param int $id
      * @return JsonResponse
@@ -133,7 +146,6 @@ class ProductController extends Controller
     {
         try {
             $this->productService->deleteProduct($id);
-
             return ResponseBuilder::deleted('Product deleted successfully');
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ResponseBuilder::notFound('Product not found');
@@ -156,22 +168,25 @@ class ProductController extends Controller
                 'per_page' => 'sometimes|integer|min:1|max:100'
             ]);
 
-            $filters = $request->only([
-                'search',
-                'category',
-                'min_price',
-                'max_price',
-                'min_stock',
-                'max_stock',
-                'sort_by',
-                'sort_direction',
-                'in_stock',
-                'featured'
-            ]);
+            // Sanitize search query
+            $searchQuery = strip_tags(trim($request->get('query')));
 
-            $filters['search'] = $request->get('query');
+            $filters = array_merge(
+                $request->only([
+                    'category',
+                    'min_price',
+                    'max_price',
+                    'min_stock',
+                    'max_stock',
+                    'sort_by',
+                    'sort_direction',
+                    'in_stock',
+                    'featured'
+                ]),
+                ['search' => $searchQuery]
+            );
+
             $perPage = min($request->get('per_page', 15), 100);
-
             $products = $this->productService->getProductsForApi($filters, $perPage);
 
             return ResponseBuilder::paginated($products, 'Search results retrieved successfully');
@@ -183,117 +198,17 @@ class ProductController extends Controller
     }
 
     /**
-     * Get low stock products.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function lowStock(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'threshold' => 'sometimes|integer|min:0|max:100'
-            ]);
-
-            $threshold = $request->get('threshold', 10);
-            $products = $this->productService->getLowStockProducts($threshold);
-
-            return ResponseBuilder::collection($products, 'Low stock products retrieved successfully');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return ResponseBuilder::validationError($e->errors());
-        } catch (\Exception $e) {
-            return ResponseBuilder::exception($e, 'Failed to retrieve low stock products');
-        }
-    }
-
-    /**
-     * Get popular products.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function popular(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'limit' => 'sometimes|integer|min:1|max:50'
-            ]);
-
-            $limit = $request->get('limit', 10);
-            $products = $this->productService->getPopularProducts($limit);
-
-            return ResponseBuilder::collection($products, 'Popular products retrieved successfully');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return ResponseBuilder::validationError($e->errors());
-        } catch (\Exception $e) {
-            return ResponseBuilder::exception($e, 'Failed to retrieve popular products');
-        }
-    }
-
-    /**
-     * Get featured products.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function featured(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'limit' => 'sometimes|integer|min:1|max:50'
-            ]);
-
-            $limit = $request->get('limit', 10);
-            $products = $this->productService->getFeaturedProducts($limit);
-
-            return ResponseBuilder::collection($products, 'Featured products retrieved successfully');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return ResponseBuilder::validationError($e->errors());
-        } catch (\Exception $e) {
-            return ResponseBuilder::exception($e, 'Failed to retrieve featured products');
-        }
-    }
-
-    /**
-     * Get products statistics.
+     * Get product statistics (admin only).
      *
      * @return JsonResponse
      */
     public function statistics(): JsonResponse
     {
         try {
-            $statistics = $this->productService->getProductsStatistics();
-
-            return ResponseBuilder::success($statistics, 'Products statistics retrieved successfully');
+            $statistics = $this->productService->getProductStatistics();
+            return ResponseBuilder::success($statistics, 'Product statistics retrieved successfully');
         } catch (\Exception $e) {
-            return ResponseBuilder::exception($e, 'Failed to retrieve products statistics');
-        }
-    }
-
-    /**
-     * Get recently added products.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function recent(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'days' => 'sometimes|integer|min:1|max:365',
-                'limit' => 'sometimes|integer|min:1|max:50'
-            ]);
-
-            $days = $request->get('days', 7);
-            $limit = $request->get('limit', 10);
-
-            $products = $this->productService->getRecentlyAddedProducts($days, $limit);
-
-            return ResponseBuilder::collection($products, 'Recently added products retrieved successfully');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return ResponseBuilder::validationError($e->errors());
-        } catch (\Exception $e) {
-            return ResponseBuilder::exception($e, 'Failed to retrieve recently added products');
+            return ResponseBuilder::exception($e, 'Failed to retrieve product statistics');
         }
     }
 
@@ -308,26 +223,32 @@ class ProductController extends Controller
     {
         try {
             $request->validate([
-                'stock' => 'required|integer|min:0'
+                'stock' => 'required|integer|min:0',
+                'reason' => 'required|string|max:255'
             ]);
 
-            $this->productService->updateProductStock($id, $request->get('stock'));
+            $data = [
+                'stock' => $request->get('stock'),
+                'reason' => $request->get('reason')
+            ];
+
+            $product = $this->productService->updateProductStock($id, $data);
 
             return ResponseBuilder::updated(
-                $this->productService->getProductForApi($id),
+                $this->productService->getProductForApi($product->id),
                 'Product stock updated successfully'
             );
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return ResponseBuilder::notFound('Product not found');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return ResponseBuilder::validationError($e->errors());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Product not found');
         } catch (\Exception $e) {
             return ResponseBuilder::exception($e, 'Failed to update product stock');
         }
     }
 
     /**
-     * Bulk update products.
+     * Bulk update products (admin only).
      *
      * @param Request $request
      * @return JsonResponse
@@ -336,22 +257,20 @@ class ProductController extends Controller
     {
         try {
             $request->validate([
-                'updates' => 'required|array',
-                'updates.*.id' => 'required|integer|exists:products,id',
-                'updates.*.data' => 'required|array'
+                'products' => 'required|array|min:1|max:100',
+                'products.*.id' => 'required|integer|exists:products,id',
+                'products.*.stock' => 'sometimes|integer|min:0',
+                'products.*.price' => 'sometimes|numeric|min:0.01',
+                'products.*.featured' => 'sometimes|boolean'
             ]);
 
-            $result = $this->productService->bulkUpdate($request->get('updates'));
+            $this->productService->bulkUpdateProducts($request->get('products'));
 
-            if ($result) {
-                return ResponseBuilder::success([], 'Products updated successfully');
-            } else {
-                return ResponseBuilder::error('Failed to update products');
-            }
+            return ResponseBuilder::success(null, 'Products updated successfully');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return ResponseBuilder::validationError($e->errors());
         } catch (\Exception $e) {
-            return ResponseBuilder::exception($e, 'Failed to bulk update products');
+            return ResponseBuilder::exception($e, 'Failed to update products');
         }
     }
 
@@ -364,7 +283,6 @@ class ProductController extends Controller
     {
         try {
             $products = $this->productService->getInStockProducts();
-
             return ResponseBuilder::collection($products, 'In-stock products retrieved successfully');
         } catch (\Exception $e) {
             return ResponseBuilder::exception($e, 'Failed to retrieve in-stock products');
@@ -380,7 +298,6 @@ class ProductController extends Controller
     {
         try {
             $products = $this->productService->getOutOfStockProducts();
-
             return ResponseBuilder::collection($products, 'Out-of-stock products retrieved successfully');
         } catch (\Exception $e) {
             return ResponseBuilder::exception($e, 'Failed to retrieve out-of-stock products');
@@ -388,7 +305,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Get cache statistics.
+     * Get cache statistics (admin only).
      *
      * @return JsonResponse
      */
@@ -396,7 +313,6 @@ class ProductController extends Controller
     {
         try {
             $statistics = $this->productService->getCacheStatistics();
-
             return ResponseBuilder::success($statistics, 'Cache statistics retrieved successfully');
         } catch (\Exception $e) {
             return ResponseBuilder::exception($e, 'Failed to retrieve cache statistics');

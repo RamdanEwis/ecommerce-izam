@@ -5,21 +5,22 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Laravel\Scout\Searchable;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use HasFactory, Searchable;
+    use HasFactory, Searchable, SoftDeletes;
 
     protected $fillable = [
         'name',
         'description',
         'price',
-        'stock',
+        'stock'
     ];
 
     protected $casts = [
         'price' => 'decimal:2',
-        'stock' => 'integer',
+        'stock' => 'integer'
     ];
 
     /**
@@ -36,7 +37,7 @@ class Product extends Model
             'price' => (float) $this->price,
             'stock' => $this->stock,
             'in_stock' => $this->stock > 0,
-            'created_at' => $this->created_at?->timestamp,
+            'created_at' => $this->created_at?->timestamp
         ];
     }
 

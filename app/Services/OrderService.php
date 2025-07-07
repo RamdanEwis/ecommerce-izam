@@ -542,4 +542,87 @@ class OrderService
     {
         return CacheService::getCacheStats();
     }
+
+    /**
+     * Get statistics for a specific user's orders.
+     *
+     * @param int $userId
+     * @return array
+     */
+    public function getUserOrderStatistics(int $userId): array
+    {
+        $orders = $this->orderRepository->getUserOrders($userId);
+
+        return [
+            'total_orders' => $orders->count(),
+            'total_spent' => $orders->sum('total_amount'),
+            'average_order_value' => $orders->avg('total_amount'),
+            'orders_by_status' => $orders->groupBy('status')
+                ->map(fn($group) => $group->count()),
+            'recent_orders' => $orders->take(5)->values(),
+        ];
+    }
+
+    /**
+     * Get statistics for all orders (admin only).
+     *
+     * @return array
+     */
+    public function getAllOrderStatistics(): array
+    {
+        $orders = $this->orderRepository->getAllOrders();
+
+        return [
+            'total_orders' => $orders->count(),
+            'total_revenue' => $orders->sum('total_amount'),
+            'average_order_value' => $orders->avg('total_amount'),
+            'orders_by_status' => $orders->groupBy('status')
+                ->map(fn($group) => $group->count()),
+            'orders_by_month' => $orders->groupBy(function($order) {
+                return $order->created_at->format('Y-m');
+            })->map(fn($group) => [
+                'count' => $group->count(),
+                'revenue' => $group->sum('total_amount')
+            ]),
+            'top_customers' => $orders->groupBy('user_id')
+                ->map(fn($group) => [
+                    'user_id' => $group->first()->user_id,
+                    'name' => $group->first()->user->name,
+                    'orders_count' => $group->count(),
+                    'total_spent' => $group->sum('total_amount')
+                ])
+                ->sortByDesc('total_spent')
+                ->take(10)
+                ->values(),
+        ];
+    }
+
+    /**
+     * Get monthly statistics for a specific user.
+     *
+     * @param int $userId
+     * @param int $year
+     * @param int $month
+     * @return array
+     */
+    public function getUserMonthlyStatistics(int $userId, int $year, int $month): array
+    {
+        $orders = $this->orderRepository->getUserOrdersByMonth($userId, $year, $month);
+
+        return [
+            'year' => $year,
+            'month' => $month,
+            'total_orders' => $orders->count(),
+            'total_spent' => $orders->sum('total_amount'),
+            'average_order_value' => $orders->avg('total_amount'),
+            'orders_by_status' => $orders->groupBy('status')
+                ->map(fn($group) => $group->count()),
+            'daily_orders' => $orders->groupBy(function($order) {
+                return $order->created_at->format('Y-m-d');
+            })->map(fn($group) => [
+                'count' => $group->count(),
+                'total' => $group->sum('total_amount')
+            ]),
+        ];
+    }
 }

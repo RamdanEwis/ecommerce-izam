@@ -135,4 +135,24 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Rate Limiting Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Here you may configure the rate limiting options for your application.
+    | These will be used by the throttle middleware.
+    |
+    */
+
+    'rate_limits' => [
+        'public_browsing' => '200,1',      // 200 requests per minute for browsing
+        'search' => '100,1',               // 100 requests per minute for search
+        'authenticated' => '60,1',         // 60 requests per minute for authenticated users
+        'write_operations' => '30,1',      // 30 requests per minute for write operations
+        'admin_read' => '100,1',           // 100 requests per minute for admin read operations
+        'admin_write' => '20,1',           // 20 requests per minute for admin write operations
+        'bulk_operations' => '10,1',       // 10 requests per minute for bulk operations
+    ],
+
 ];

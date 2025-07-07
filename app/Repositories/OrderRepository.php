@@ -11,7 +11,17 @@ use Illuminate\Support\Facades\DB;
 
 class OrderRepository extends BaseRepository implements OrderRepositoryInterface
 {
-	 /**
+    /**
+     * OrderRepository constructor.
+     *
+     * @param Order $model
+     */
+    public function __construct(Order $model)
+    {
+        parent::__construct($model);
+    }
+
+    /**
      * Get the model instance
      *
      * @return Model
@@ -111,7 +121,7 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
             ->get($columns);
     }
 
-     /**
+    /**
      * Get orders by total amount range
      *
      * @param float $minAmount
@@ -174,7 +184,7 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
         return $this->getByStatus('cancelled', $columns);
     }
 
-     /**
+    /**
      * Update order status
      *
      * @param int $orderId
@@ -360,5 +370,101 @@ class OrderRepository extends BaseRepository implements OrderRepositoryInterface
         }
 
         return (float) $query->sum('total_amount');
+    }
+
+    /**
+     * Get all orders for a specific user.
+     *
+     * @param int $userId
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getUserOrders(int $userId)
+    {
+        return $this->model->where('user_id', $userId)
+            ->with(['user', 'products'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    /**
+     * Get all orders (admin only).
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getAllOrders()
+    {
+        return $this->model->with(['user', 'products'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    /**
+     * Get user orders for a specific month.
+     *
+     * @param int $userId
+     * @param int $year
+     * @param int $month
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    public function getUserOrdersByMonth(int $userId, int $year, int $month)
+    {
+        return $this->model->where('user_id', $userId)
+            ->whereYear('created_at', $year)
+            ->whereMonth('created_at', $month)
+            ->with(['user', 'products'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    /**
+     * Get orders with filters for API.
+     *
+     * @param array $filters
+     * @param int $perPage
+     * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
+     */
+    public function getOrdersForApi(array $filters, int $perPage = 15)
+    {
+        $query = $this->model->with(['user', 'products']);
+
+        if (isset($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (isset($filters['min_amount'])) {
+            $query->where('total_amount', '>=', $filters['min_amount']);
+        }
+
+        if (isset($filters['max_amount'])) {
+            $query->where('total_amount', '<=', $filters['max_amount']);
+        }
+
+        if (isset($filters['start_date'])) {
+            $query->whereDate('created_at', '>=', $filters['start_date']);
+        }
+
+        if (isset($filters['end_date'])) {
+            $query->whereDate('created_at', '<=', $filters['end_date']);
+        }
+
+        $sortBy = $filters['sort_by'] ?? 'created_at';
+        $sortDirection = $filters['sort_direction'] ?? 'desc';
+        $query->orderBy($sortBy, $sortDirection);
+
+        return $query->paginate($perPage);
+    }
+
+    /**
+     * Check if a user owns an order.
+     *
+     * @param int $orderId
+     * @param int $userId
+     * @return bool
+     */
+    public function userOwnsOrder(int $orderId, int $userId): bool
+    {
+        return $this->model->where('id', $orderId)
+            ->where('user_id', $userId)
+            ->exists();
     }
 }

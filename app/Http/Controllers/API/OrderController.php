@@ -10,6 +10,7 @@ use App\Http\Requests\Order\UpdateOrderRequest;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
@@ -30,7 +31,7 @@ class OrderController extends Controller
     }
 
     /**
-     * Display a listing of the resource.
+     * Display a listing of all orders (admin only).
      *
      * @param Request $request
      * @return JsonResponse
@@ -67,13 +68,27 @@ class OrderController extends Controller
     public function store(StoreOrderRequest $request): JsonResponse
     {
         try {
+            Log::info('Creating new order', [
+                'user_id' => $this->getAuthUserId(),
+                'request_data' => $request->validated()
+            ]);
+
             $order = $this->orderService->createOrder($request->validated());
+
+            Log::info('Order created successfully', [
+                'order_id' => $order->id,
+                'user_id' => $this->getAuthUserId()
+            ]);
 
             return ResponseBuilder::created(
                 $this->orderService->getOrderForApi($order->id),
                 'Order created successfully'
             );
         } catch (\Exception $e) {
+            Log::error('Failed to create order', [
+                'user_id' => $this->getAuthUserId(),
+                'error' => $e->getMessage()
+            ]);
             return ResponseBuilder::exception($e, 'Failed to create order');
         }
     }
@@ -87,8 +102,8 @@ class OrderController extends Controller
     public function show(int $id): JsonResponse
     {
         try {
-            // Check if user owns the order
-            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
+            // Check if user owns the order or is admin
+            if (!$this->orderService->userOwnsOrder($id, $this->getAuthUserId()) && !$this->getAuthUser()->isAdmin()) {
                 return ResponseBuilder::forbidden('You do not have permission to view this order');
             }
 
@@ -113,7 +128,7 @@ class OrderController extends Controller
     {
         try {
             // Check if user owns the order
-            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
+            if (!$this->orderService->userOwnsOrder($id, $this->getAuthUserId())) {
                 return ResponseBuilder::forbidden('You do not have permission to update this order');
             }
 
@@ -140,7 +155,7 @@ class OrderController extends Controller
     {
         try {
             // Check if user owns the order
-            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
+            if (!$this->orderService->userOwnsOrder($id, $this->getAuthUserId())) {
                 return ResponseBuilder::forbidden('You do not have permission to delete this order');
             }
 
@@ -164,8 +179,7 @@ class OrderController extends Controller
     {
         try {
             $perPage = min($request->get('per_page', 15), 100);
-
-            $orders = $this->orderService->getUserOrdersForApi($perPage);
+            $orders = $this->orderService->getUserOrdersForApi($this->getAuthUserId(), $perPage);
 
             return ResponseBuilder::paginated($orders, 'Your orders retrieved successfully');
         } catch (\Exception $e) {
@@ -183,9 +197,18 @@ class OrderController extends Controller
     {
         try {
             // Check if user owns the order
-            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
+            if (!$this->orderService->userOwnsOrder($id, $this->getAuthUserId())) {
+                Log::warning('Unauthorized order cancellation attempt', [
+                    'order_id' => $id,
+                    'user_id' => $this->getAuthUserId()
+                ]);
                 return ResponseBuilder::forbidden('You do not have permission to cancel this order');
             }
+
+            Log::info('Cancelling order', [
+                'order_id' => $id,
+                'user_id' => $this->getAuthUserId()
+            ]);
 
             $order = $this->orderService->cancelOrder($id);
 
@@ -196,6 +219,11 @@ class OrderController extends Controller
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return ResponseBuilder::notFound('Order not found');
         } catch (\Exception $e) {
+            Log::error('Failed to cancel order', [
+                'order_id' => $id,
+                'user_id' => $this->getAuthUserId(),
+                'error' => $e->getMessage()
+            ]);
             return ResponseBuilder::exception($e, 'Failed to cancel order');
         }
     }
@@ -210,7 +238,7 @@ class OrderController extends Controller
     {
         try {
             // Check if user owns the order
-            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
+            if (!$this->orderService->userOwnsOrder($id, $this->getAuthUserId())) {
                 return ResponseBuilder::forbidden('You do not have permission to complete this order');
             }
 
@@ -228,6 +256,59 @@ class OrderController extends Controller
     }
 
     /**
+     * Get statistics for the authenticated user's orders.
+     *
+     * @return JsonResponse
+     */
+    public function statistics(): JsonResponse
+    {
+        try {
+            $statistics = $this->orderService->getUserOrderStatistics($this->getAuthUserId());
+            return ResponseBuilder::success($statistics, 'Order statistics retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve order statistics');
+        }
+    }
+
+    /**
+     * Get all orders statistics (admin only).
+     *
+     * @return JsonResponse
+     */
+    public function allStatistics(): JsonResponse
+    {
+        try {
+            $statistics = $this->orderService->getAllOrderStatistics();
+            return ResponseBuilder::success($statistics, 'All order statistics retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve order statistics');
+        }
+    }
+
+    /**
+     * Get monthly statistics for the authenticated user's orders.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function monthlyStatistics(Request $request): JsonResponse
+    {
+        try {
+            $year = $request->get('year', date('Y'));
+            $month = $request->get('month', date('m'));
+
+            $statistics = $this->orderService->getUserMonthlyStatistics(
+                $this->getAuthUserId(),
+                $year,
+                $month
+            );
+            return ResponseBuilder::success($statistics, 'Monthly statistics retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve monthly statistics');
+        }
+    }
+
+    /**
      * Get orders by status.
      *
      * @param Request $request
@@ -241,77 +322,16 @@ class OrderController extends Controller
             ]);
 
             $status = $request->get('status');
-            $orders = $this->orderService->getUserOrdersByStatus(Auth::id(), $status);
+            $orders = $this->orderService->getUserOrdersByStatus(
+                $this->getAuthUserId(),
+                $status
+            );
 
             return ResponseBuilder::collection($orders, "Orders with status '{$status}' retrieved successfully");
         } catch (\Illuminate\Validation\ValidationException $e) {
             return ResponseBuilder::validationError($e->errors());
         } catch (\Exception $e) {
             return ResponseBuilder::exception($e, 'Failed to retrieve orders by status');
-        }
-    }
-
-    /**
-     * Get order statistics.
-     *
-     * @return JsonResponse
-     */
-    public function statistics(): JsonResponse
-    {
-        try {
-            $statistics = $this->orderService->getOrdersStatistics(Auth::id());
-
-            return ResponseBuilder::success($statistics, 'Order statistics retrieved successfully');
-        } catch (\Exception $e) {
-            return ResponseBuilder::exception($e, 'Failed to retrieve order statistics');
-        }
-    }
-
-    /**
-     * Get monthly order statistics.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function monthlyStatistics(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'year' => 'required|integer|min:2020|max:' . (date('Y') + 1)
-            ]);
-
-            $year = $request->get('year');
-            $statistics = $this->orderService->getMonthlyOrderStatistics($year, Auth::id());
-
-            return ResponseBuilder::success($statistics, 'Monthly order statistics retrieved successfully');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return ResponseBuilder::validationError($e->errors());
-        } catch (\Exception $e) {
-            return ResponseBuilder::exception($e, 'Failed to retrieve monthly order statistics');
-        }
-    }
-
-    /**
-     * Get recent orders.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
-    public function recent(Request $request): JsonResponse
-    {
-        try {
-            $request->validate([
-                'days' => 'sometimes|integer|min:1|max:365'
-            ]);
-
-            $days = $request->get('days', 7);
-            $orders = $this->orderService->getRecentOrders($days);
-
-            return ResponseBuilder::collection($orders, 'Recent orders retrieved successfully');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return ResponseBuilder::validationError($e->errors());
-        } catch (\Exception $e) {
-            return ResponseBuilder::exception($e, 'Failed to retrieve recent orders');
         }
     }
 
@@ -329,10 +349,10 @@ class OrderController extends Controller
                 'end_date' => 'required|date|after_or_equal:start_date'
             ]);
 
-            $startDate = $request->get('start_date');
-            $endDate = $request->get('end_date');
-
-            $orders = $this->orderService->getOrdersByDateRange($startDate, $endDate);
+            $orders = $this->orderService->getOrdersByDateRange(
+                $request->get('start_date'),
+                $request->get('end_date')
+            );
 
             return ResponseBuilder::collection($orders, 'Orders by date range retrieved successfully');
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -353,13 +373,13 @@ class OrderController extends Controller
         try {
             $request->validate([
                 'min_amount' => 'required|numeric|min:0',
-                'max_amount' => 'required|numeric|gte:min_amount'
+                'max_amount' => 'required|numeric|gt:min_amount'
             ]);
 
-            $minAmount = $request->get('min_amount');
-            $maxAmount = $request->get('max_amount');
-
-            $orders = $this->orderService->getOrdersByAmountRange($minAmount, $maxAmount);
+            $orders = $this->orderService->getOrdersByAmountRange(
+                $request->get('min_amount'),
+                $request->get('max_amount')
+            );
 
             return ResponseBuilder::collection($orders, 'Orders by amount range retrieved successfully');
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -380,12 +400,12 @@ class OrderController extends Controller
     {
         try {
             $request->validate([
-                'status' => 'required|in:pending,completed,cancelled'
+                'status' => 'required|in:pending,processing,completed,cancelled'
             ]);
 
             // Check if user owns the order
-            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
-                return ResponseBuilder::forbidden('You do not have permission to update this order');
+            if (!$this->orderService->userOwnsOrder($id, $this->getAuthUserId())) {
+                return ResponseBuilder::forbidden('You do not have permission to update this order status');
             }
 
             $order = $this->orderService->updateOrderStatus($id, $request->get('status'));
@@ -394,17 +414,17 @@ class OrderController extends Controller
                 $this->orderService->getOrderForApi($order->id),
                 'Order status updated successfully'
             );
-        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return ResponseBuilder::notFound('Order not found');
         } catch (\Illuminate\Validation\ValidationException $e) {
             return ResponseBuilder::validationError($e->errors());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Order not found');
         } catch (\Exception $e) {
             return ResponseBuilder::exception($e, 'Failed to update order status');
         }
     }
 
     /**
-     * Calculate total revenue.
+     * Get total revenue.
      *
      * @param Request $request
      * @return JsonResponse
@@ -412,25 +432,14 @@ class OrderController extends Controller
     public function totalRevenue(Request $request): JsonResponse
     {
         try {
-            $request->validate([
-                'start_date' => 'sometimes|date',
-                'end_date' => 'sometimes|date|after_or_equal:start_date'
-            ]);
-
-            $startDate = $request->get('start_date');
-            $endDate = $request->get('end_date');
-
-            $revenue = $this->orderService->calculateTotalRevenue($startDate, $endDate);
+            $filters = $request->only(['start_date', 'end_date']);
+            $revenue = $this->orderService->getTotalRevenue($filters);
 
             return ResponseBuilder::success([
-                'total_revenue' => $revenue,
-                'start_date' => $startDate,
-                'end_date' => $endDate
-            ], 'Total revenue calculated successfully');
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return ResponseBuilder::validationError($e->errors());
+                'revenue' => $revenue
+            ], 'Total revenue retrieved successfully');
         } catch (\Exception $e) {
-            return ResponseBuilder::exception($e, 'Failed to calculate total revenue');
+            return ResponseBuilder::exception($e, 'Failed to retrieve total revenue');
         }
     }
 }
