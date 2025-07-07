@@ -12,7 +12,7 @@ class StoreOrderRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return true;
+        return auth()->check();
     }
 
     /**
@@ -23,10 +23,32 @@ class StoreOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'products' => ['required', 'array', 'min:1'],
-            'products.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'products.*.quantity' => ['required', 'integer', 'min:1'],
-            'status' => ['sometimes', 'string', Rule::in(['pending', 'processing', 'completed', 'cancelled'])],
+            'products' => ['required', 'array', 'min:1', 'max:50'],
+            'products.*.product_id' => [
+                'required',
+                'integer',
+                'exists:products,id',
+                'distinct',
+            ],
+            'products.*.quantity' => [
+                'required',
+                'integer',
+                'min:1',
+                'max:1000',
+            ],
+            'status' => [
+                'sometimes',
+                'string',
+                'max:20',
+                Rule::in(['pending', 'processing', 'completed', 'cancelled']),
+            ],
+            'notes' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:1000',
+                'regex:/^[\pL\pN\s\-\_\.\,\!\?]+$/u',
+            ],
         ];
     }
 
@@ -41,11 +63,17 @@ class StoreOrderRequest extends FormRequest
             'products.required' => 'At least one product is required',
             'products.array' => 'Products must be provided as an array',
             'products.min' => 'At least one product is required',
+            'products.max' => 'Order cannot contain more than 50 products',
             'products.*.product_id.required' => 'Product ID is required',
             'products.*.product_id.exists' => 'Selected product does not exist',
+            'products.*.product_id.distinct' => 'Duplicate products are not allowed',
             'products.*.quantity.required' => 'Product quantity is required',
             'products.*.quantity.min' => 'Quantity must be at least 1',
+            'products.*.quantity.max' => 'Quantity cannot exceed 1000 units',
             'status.in' => 'Invalid order status',
+            'status.max' => 'Status cannot exceed 20 characters',
+            'notes.max' => 'Notes cannot exceed 1000 characters',
+            'notes.regex' => 'Notes contain invalid characters',
         ];
     }
 
@@ -57,6 +85,12 @@ class StoreOrderRequest extends FormRequest
         if ($this->user() && !$this->has('user_id')) {
             $this->merge([
                 'user_id' => $this->user()->id
+            ]);
+        }
+
+        if ($this->has('notes')) {
+            $this->merge([
+                'notes' => trim($this->input('notes'))
             ]);
         }
     }

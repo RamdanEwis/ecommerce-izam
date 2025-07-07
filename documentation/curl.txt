@@ -1,230 +1,159 @@
-=====================Product=====================
-curl --location 'http://localhost/api/products' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request POST \
---data '{
-    "name": "value",
-    "description": "value",
-    "price": "value",
-    "stock": "value"
-}'
+# Authentication Endpoints
 
-curl --location 'http://localhost/api/products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request PATCH \
---data '{
-    "name": "value",
-    "description": "value",
-    "price": "value",
-    "stock": "value"
-}'
+# Register a new user
+curl -X POST http://localhost/api/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "John Doe",
+    "email": "john@example.com",
+    "password": "password123",
+    "password_confirmation": "password123"
+  }'
 
-curl --location 'http://localhost/api/products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request DELETE
+# Login
+curl -X POST http://localhost/api/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "john@example.com",
+    "password": "password123"
+  }'
 
-curl --location 'http://localhost/api/products' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Logout (requires authentication)
+curl -X POST http://localhost/api/logout \
+  -H "Authorization: Bearer {your_token}"
 
-curl --location 'http://localhost/api/products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Get authenticated user details
+curl -X GET http://localhost/api/user \
+  -H "Authorization: Bearer {your_token}"
 
-=====================Product=====================
-=====================Order=====================
-curl --location 'http://localhost/api/orders' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request POST \
---data '{
-    "user_id": "value",
-    "total_amount": "value",
-    "status": "value"
-}'
+# Product Endpoints
 
-curl --location 'http://localhost/api/orders/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request PATCH \
---data '{
-    "user_id": "value",
-    "total_amount": "value",
-    "status": "value"
-}'
+# List all products
+curl -X GET http://localhost/api/products
 
-curl --location 'http://localhost/api/orders/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request DELETE
+# Create a new product (requires authentication)
+curl -X POST http://localhost/api/products \
+  -H "Authorization: Bearer {your_token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Product Name",
+    "description": "Product Description",
+    "price": 99.99,
+    "stock": 100
+  }'
 
-curl --location 'http://localhost/api/orders' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Get a single product
+curl -X GET http://localhost/api/products/1
 
-curl --location 'http://localhost/api/orders/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Update a product (requires authentication)
+curl -X PUT http://localhost/api/products/1 \
+  -H "Authorization: Bearer {your_token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Product Name",
+    "description": "Updated Description",
+    "price": 149.99,
+    "stock": 200
+  }'
 
-=====================Order=====================
-=====================OrderProduct=====================
-curl --location 'http://localhost/api/order_products' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request POST \
---data '{
-    "order_id": "value",
-    "product_id": "value",
-    "quantity": "value",
-    "price": "value"
-}'
+# Delete a product (requires authentication)
+curl -X DELETE http://localhost/api/products/1 \
+  -H "Authorization: Bearer {your_token}"
 
-curl --location 'http://localhost/api/order_products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request PATCH \
---data '{
-    "order_id": "value",
-    "product_id": "value",
-    "quantity": "value",
-    "price": "value"
-}'
+# Update product stock (requires authentication)
+curl -X PUT http://localhost/api/products/1/stock \
+  -H "Authorization: Bearer {your_token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "stock": 150
+  }'
 
-curl --location 'http://localhost/api/order_products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request DELETE
+# Search products
+curl -X GET "http://localhost/api/products/search?q=keyword"
 
-curl --location 'http://localhost/api/order_products' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Get low stock products
+curl -X GET http://localhost/api/products/low-stock
 
-curl --location 'http://localhost/api/order_products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Get popular products
+curl -X GET http://localhost/api/products/popular
 
-=====================OrderProduct=====================
-=====================Product=====================
-curl --location 'http://localhost/api/products' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request POST \
---data '{
-    "name": "value",
-    "description": "value",
-    "price": "value",
-    "stock": "value"
-}'
+# Get featured products
+curl -X GET http://localhost/api/products/featured
 
-curl --location 'http://localhost/api/products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request PATCH \
---data '{
-    "name": "value",
-    "description": "value",
-    "price": "value",
-    "stock": "value"
-}'
+# Get recent products
+curl -X GET http://localhost/api/products/recent
 
-curl --location 'http://localhost/api/products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request DELETE
+# Get in-stock products
+curl -X GET http://localhost/api/products/in-stock
 
-curl --location 'http://localhost/api/products' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Get out-of-stock products
+curl -X GET http://localhost/api/products/out-of-stock
 
-curl --location 'http://localhost/api/products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Get product statistics (requires authentication)
+curl -X GET http://localhost/api/products/statistics \
+  -H "Authorization: Bearer {your_token}"
 
-=====================Product=====================
-=====================Order=====================
-curl --location 'http://localhost/api/orders' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request POST \
---data '{
-    "user_id": "value",
-    "total_amount": "value",
-    "status": "value"
-}'
+# Order Endpoints
 
-curl --location 'http://localhost/api/orders/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request PATCH \
---data '{
-    "user_id": "value",
-    "total_amount": "value",
-    "status": "value"
-}'
+# List all orders (requires authentication)
+curl -X GET http://localhost/api/orders \
+  -H "Authorization: Bearer {your_token}"
 
-curl --location 'http://localhost/api/orders/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request DELETE
+# Create a new order (requires authentication)
+curl -X POST http://localhost/api/orders \
+  -H "Authorization: Bearer {your_token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "products": [
+      {
+        "product_id": 1,
+        "quantity": 2
+      },
+      {
+        "product_id": 2,
+        "quantity": 1
+      }
+    ]
+  }'
 
-curl --location 'http://localhost/api/orders' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Get a single order (requires authentication)
+curl -X GET http://localhost/api/orders/1 \
+  -H "Authorization: Bearer {your_token}"
 
-curl --location 'http://localhost/api/orders/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Update an order (requires authentication)
+curl -X PUT http://localhost/api/orders/1 \
+  -H "Authorization: Bearer {your_token}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "processing",
+    "products": [
+      {
+        "product_id": 1,
+        "quantity": 3
+      }
+    ]
+  }'
 
-=====================Order=====================
-=====================OrderProduct=====================
-curl --location 'http://localhost/api/order_products' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request POST \
---data '{
-    "order_id": "value",
-    "product_id": "value",
-    "quantity": "value",
-    "price": "value"
-}'
+# Get authenticated user's orders
+curl -X GET http://localhost/api/orders/my-orders \
+  -H "Authorization: Bearer {your_token}"
 
-curl --location 'http://localhost/api/order_products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request PATCH \
---data '{
-    "order_id": "value",
-    "product_id": "value",
-    "quantity": "value",
-    "price": "value"
-}'
+# Get orders by status
+curl -X GET "http://localhost/api/orders/by-status?status=pending" \
+  -H "Authorization: Bearer {your_token}"
 
-curl --location 'http://localhost/api/order_products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request DELETE
+# Get orders by date range
+curl -X GET "http://localhost/api/orders/by-date-range?start_date=2024-01-01&end_date=2024-12-31" \
+  -H "Authorization: Bearer {your_token}"
 
-curl --location 'http://localhost/api/order_products' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Get order statistics
+curl -X GET http://localhost/api/orders/statistics \
+  -H "Authorization: Bearer {your_token}"
 
-curl --location 'http://localhost/api/order_products/:id' \
---header 'Accept: application/json' \
---header 'Content-Type: application/json' \
---request GET
+# Cancel an order
+curl -X PUT http://localhost/api/orders/1/cancel \
+  -H "Authorization: Bearer {your_token}"
 
-=====================OrderProduct=====================
+# Complete an order
+curl -X PUT http://localhost/api/orders/1/complete \
+  -H "Authorization: Bearer {your_token}"
