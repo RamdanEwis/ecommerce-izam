@@ -157,28 +157,45 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
             ->get($columns);
     }
 
-    /**
-     * Update product stock
+        /**
+     * Update product stock safely (prevents race conditions)
      *
      * @param int $productId
      * @param int $quantity
      * @param string $operation
      * @return Product
+     * @throws \Exception
      */
     public function updateStock(int $productId, int $quantity, string $operation = 'decrement'): Product
     {
-        $product = $this->findOrFail($productId);
+        return DB::transaction(function () use ($productId, $quantity, $operation) {
+            // Lock the product row to prevent race conditions
+            $product = $this->getFreshQuery()
+                ->where('id', $productId)
+                ->lockForUpdate()
+                ->first();
 
-        if ($operation === 'increment') {
-            $product->increment('stock', $quantity);
-        } elseif ($operation === 'decrement') {
-            $product->decrement('stock', $quantity);
-        }
+            if (!$product) {
+                throw new \Illuminate\Database\Eloquent\ModelNotFoundException("Product with ID {$productId} not found");
+            }
 
-        return $product->fresh();
+            if ($operation === 'increment') {
+                $product->stock += $quantity;
+            } elseif ($operation === 'decrement') {
+                if ($product->stock < $quantity) {
+                    throw new \Exception("Insufficient stock. Available: {$product->stock}, Requested: {$quantity}");
+                }
+                $product->stock -= $quantity;
+            }
+
+            $product->save();
+            return $product;
+        });
     }
 
-     /**
+
+
+    /**
      * Get low stock products
      *
      * @param int $threshold
@@ -251,30 +268,6 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
             ->where('created_at', '>=', now()->subDays($days))
             ->orderBy('created_at', 'desc')
             ->get($columns);
-    }
-
-    /**
-     * Bulk update stock
-     *
-     * @param array $stockUpdates
-     * @return bool
-     */
-    public function bulkUpdateStock(array $stockUpdates): bool
-    {
-        try {
-            DB::beginTransaction();
-
-            foreach ($stockUpdates as $update) {
-                $product = $this->findOrFail($update['product_id']);
-                $product->update(['stock' => $update['quantity']]);
-            }
-
-            DB::commit();
-            return true;
-        } catch (\Exception $e) {
-            DB::rollBack();
-            throw $e;
-        }
     }
 
     /**
