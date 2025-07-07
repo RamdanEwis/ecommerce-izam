@@ -3,25 +3,22 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ResponseBuilder;
+use App\Services\ProductService;
 use App\Http\Requests\Product\StoreProductRequest;
 use App\Http\Requests\Product\UpdateProductRequest;
-use App\Http\Resources\ProductResource;
-use App\Models\Product;
-use App\Services\CacheService;
-use App\Services\ProductService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Http\JsonResponse;
 
 class ProductController extends Controller
 {
     /**
      * @var ProductService
      */
-    protected ProductService $productService;
+    protected $productService;
 
     /**
-     * ProductController Constructor
+     * ProductController constructor.
      *
      * @param ProductService $productService
      */
@@ -31,158 +28,378 @@ class ProductController extends Controller
     }
 
     /**
-     * Display a listing of the products with search, filters, and pagination.
+     * Display a listing of the resource.
      *
      * @param Request $request
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     * @return JsonResponse
      */
-    public function index(Request $request): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
-    {
-        // Generate cache key based on request parameters
-        $cacheKey = CacheService::generateProductsCacheKey($request->all());
-
-        // Use configured cache TTL
-        $cacheTtl = config('cache.custom.products.ttl');
-
-        $products = CacheService::remember($cacheKey, $cacheTtl, function () use ($request) {
-
-            // Use Laravel Scout search if search parameter is provided
-            if ($request->filled('search')) {
-                $searchQuery = $request->get('search');
-                $query = Product::search($searchQuery);
-
-                // Apply additional filters to Scout query
-                if ($request->filled('min_price') || $request->filled('max_price')) {
-                    $query->where(function ($builder) use ($request) {
-                        if ($request->filled('min_price')) {
-                            $builder->where('price', '>=', $request->get('min_price'));
-                        }
-                        if ($request->filled('max_price')) {
-                            $builder->where('price', '<=', $request->get('max_price'));
-                        }
-                    });
-                }
-
-                // Get paginated results from Scout
-                $perPage = min($request->get('per_page', 15), 100);
-                return $query->paginate($perPage);
-
-            } else {
-                // Use regular Eloquent query for non-search requests
-                $query = Product::query();
-
-                // Name filter using LIKE
-                if ($request->filled('name')) {
-                    $query->where('name', 'like', '%' . $request->get('name') . '%');
-                }
-
-                // Price range filter
-                if ($request->filled('min_price')) {
-                    $query->where('price', '>=', $request->get('min_price'));
-                }
-
-                if ($request->filled('max_price')) {
-                    $query->where('price', '<=', $request->get('max_price'));
-                }
-
-                // Stock filter
-                if ($request->filled('in_stock')) {
-                    $inStock = filter_var($request->get('in_stock'), FILTER_VALIDATE_BOOLEAN);
-                    if ($inStock) {
-                        $query->where('stock', '>', 0);
-                    }
-                }
-
-                // Sorting
-                $sortBy = $request->get('sort_by', 'created_at');
-                $sortDirection = $request->get('sort_direction', 'desc');
-
-                if (in_array($sortBy, ['name', 'price', 'stock', 'created_at'])) {
-                    $query->orderBy($sortBy, $sortDirection);
-                }
-
-                // Pagination
-                $perPage = min($request->get('per_page', 15), 100);
-
-                return $query->paginate($perPage);
-            }
-        }, ['products', 'search']);
-
-        return ProductResource::collection($products);
-    }
-
-    /**
-     * Store a newly created product in storage.
-     *
-     * @param StoreProductRequest $request
-     * @return ProductResource|\Illuminate\Http\JsonResponse
-     */
-    public function store(StoreProductRequest $request): ProductResource|\Illuminate\Http\JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
-            $product = $this->productService->save($request->validated());
+            $filters = $request->only([
+                'search',
+                'name',
+                'category',
+                'min_price',
+                'max_price',
+                'min_stock',
+                'max_stock',
+                'sort_by',
+                'sort_direction',
+                'in_stock',
+                'featured'
+            ]);
 
-            // Cache will be cleared automatically by ProductObserver
-            // Scout index will be updated automatically
+            $perPage = min($request->get('per_page', 2000), 2000);
 
-            return new ProductResource($product);
-        } catch (\Exception $exception) {
-            report($exception);
-            return response()->json(['error' => 'There is an error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            $products = $this->productService->getProductsForApi($filters, $perPage);
+
+
+            return ResponseBuilder::paginated($products, 'Products retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve products');
         }
     }
 
     /**
-     * Display the specified product.
+     * Store a newly created resource in storage.
      *
-     * @param int $id
-     * @return ProductResource
+     * @param StoreProductRequest $request
+     * @return JsonResponse
      */
-    public function show(int $id): ProductResource
+    public function store(StoreProductRequest $request): JsonResponse
     {
-        return ProductResource::make($this->productService->getById($id));
+        try {
+            $product = $this->productService->createProduct($request->validated());
+
+            return ResponseBuilder::created(
+                $this->productService->getProductForApi($product->id),
+                'Product created successfully'
+            );
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to create product');
+        }
     }
 
     /**
-     * Update the specified product in storage.
+     * Display the specified resource.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function show(int $id): JsonResponse
+    {
+        try {
+            $product = $this->productService->getProductForApi($id);
+
+            return ResponseBuilder::success($product, 'Product retrieved successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Product not found');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve product');
+        }
+    }
+
+    /**
+     * Update the specified resource in storage.
      *
      * @param UpdateProductRequest $request
      * @param int $id
-     * @return ProductResource|\Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
-    public function update(UpdateProductRequest $request, int $id): ProductResource|\Illuminate\Http\JsonResponse
+    public function update(UpdateProductRequest $request, int $id): JsonResponse
     {
         try {
-            $product = $this->productService->update($request->validated(), $id);
+            $this->productService->updateProduct($id, $request->validated());
 
-            // Cache will be cleared automatically by ProductObserver
-            // Scout index will be updated automatically
-
-            return new ProductResource($product);
-        } catch (\Exception $exception) {
-            report($exception);
-            return response()->json(['error' => 'There is an error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ResponseBuilder::updated(
+                $this->productService->getProductForApi($id),
+                'Product updated successfully'
+            );
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Product not found');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to update product');
         }
     }
 
     /**
-     * Remove the specified product from storage.
+     * Remove the specified resource from storage.
      *
      * @param int $id
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
-    public function destroy(int $id): \Illuminate\Http\JsonResponse
+    public function destroy(int $id): JsonResponse
     {
         try {
-            $this->productService->deleteById($id);
+            $this->productService->deleteProduct($id);
 
-            // Cache will be cleared automatically by ProductObserver
-            // Scout index will be updated automatically
+            return ResponseBuilder::deleted('Product deleted successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Product not found');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to delete product');
+        }
+    }
 
-            return response()->json(['message' => 'Product deleted successfully'], Response::HTTP_OK);
-        } catch (\Exception $exception) {
-            report($exception);
-            return response()->json(['error' => 'There is an error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+    /**
+     * Search products.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function search(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'query' => 'required|string|min:2|max:255',
+                'per_page' => 'sometimes|integer|min:1|max:100'
+            ]);
+
+            $filters = $request->only([
+                'search',
+                'category',
+                'min_price',
+                'max_price',
+                'min_stock',
+                'max_stock',
+                'sort_by',
+                'sort_direction',
+                'in_stock',
+                'featured'
+            ]);
+
+            $filters['search'] = $request->get('query');
+            $perPage = min($request->get('per_page', 15), 100);
+
+            $products = $this->productService->getProductsForApi($filters, $perPage);
+
+            return ResponseBuilder::paginated($products, 'Search results retrieved successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to search products');
+        }
+    }
+
+    /**
+     * Get low stock products.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function lowStock(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'threshold' => 'sometimes|integer|min:0|max:100'
+            ]);
+
+            $threshold = $request->get('threshold', 10);
+            $products = $this->productService->getLowStockProducts($threshold);
+
+            return ResponseBuilder::collection($products, 'Low stock products retrieved successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve low stock products');
+        }
+    }
+
+    /**
+     * Get popular products.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function popular(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'limit' => 'sometimes|integer|min:1|max:50'
+            ]);
+
+            $limit = $request->get('limit', 10);
+            $products = $this->productService->getPopularProducts($limit);
+
+            return ResponseBuilder::collection($products, 'Popular products retrieved successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve popular products');
+        }
+    }
+
+    /**
+     * Get featured products.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function featured(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'limit' => 'sometimes|integer|min:1|max:50'
+            ]);
+
+            $limit = $request->get('limit', 10);
+            $products = $this->productService->getFeaturedProducts($limit);
+
+            return ResponseBuilder::collection($products, 'Featured products retrieved successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve featured products');
+        }
+    }
+
+    /**
+     * Get products statistics.
+     *
+     * @return JsonResponse
+     */
+    public function statistics(): JsonResponse
+    {
+        try {
+            $statistics = $this->productService->getProductsStatistics();
+
+            return ResponseBuilder::success($statistics, 'Products statistics retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve products statistics');
+        }
+    }
+
+    /**
+     * Get recently added products.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function recent(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'days' => 'sometimes|integer|min:1|max:365',
+                'limit' => 'sometimes|integer|min:1|max:50'
+            ]);
+
+            $days = $request->get('days', 7);
+            $limit = $request->get('limit', 10);
+
+            $products = $this->productService->getRecentlyAddedProducts($days, $limit);
+
+            return ResponseBuilder::collection($products, 'Recently added products retrieved successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve recently added products');
+        }
+    }
+
+    /**
+     * Update product stock.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function updateStock(Request $request, int $id): JsonResponse
+    {
+        try {
+            $request->validate([
+                'stock' => 'required|integer|min:0'
+            ]);
+
+            $this->productService->updateProductStock($id, $request->get('stock'));
+
+            return ResponseBuilder::updated(
+                $this->productService->getProductForApi($id),
+                'Product stock updated successfully'
+            );
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Product not found');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to update product stock');
+        }
+    }
+
+    /**
+     * Bulk update products.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function bulkUpdate(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'updates' => 'required|array',
+                'updates.*.id' => 'required|integer|exists:products,id',
+                'updates.*.data' => 'required|array'
+            ]);
+
+            $result = $this->productService->bulkUpdate($request->get('updates'));
+
+            if ($result) {
+                return ResponseBuilder::success([], 'Products updated successfully');
+            } else {
+                return ResponseBuilder::error('Failed to update products');
+            }
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to bulk update products');
+        }
+    }
+
+    /**
+     * Get in-stock products.
+     *
+     * @return JsonResponse
+     */
+    public function inStock(): JsonResponse
+    {
+        try {
+            $products = $this->productService->getInStockProducts();
+
+            return ResponseBuilder::collection($products, 'In-stock products retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve in-stock products');
+        }
+    }
+
+    /**
+     * Get out-of-stock products.
+     *
+     * @return JsonResponse
+     */
+    public function outOfStock(): JsonResponse
+    {
+        try {
+            $products = $this->productService->getOutOfStockProducts();
+
+            return ResponseBuilder::collection($products, 'Out-of-stock products retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve out-of-stock products');
+        }
+    }
+
+    /**
+     * Get cache statistics.
+     *
+     * @return JsonResponse
+     */
+    public function cacheStatistics(): JsonResponse
+    {
+        try {
+            $statistics = $this->productService->getCacheStatistics();
+
+            return ResponseBuilder::success($statistics, 'Cache statistics retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve cache statistics');
         }
     }
 }

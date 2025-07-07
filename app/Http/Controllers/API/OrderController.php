@@ -3,26 +3,23 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\ResponseBuilder;
+use App\Services\OrderService;
 use App\Http\Requests\Order\StoreOrderRequest;
 use App\Http\Requests\Order\UpdateOrderRequest;
-use App\Http\Resources\OrderResource;
-use App\Models\Order;
-use App\Models\Product;
-use App\Services\OrderService;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
-use Symfony\Component\HttpFoundation\Response;
 
 class OrderController extends Controller
 {
     /**
      * @var OrderService
      */
-    protected OrderService $orderService;
+    protected $orderService;
 
     /**
-     * OrderController Constructor
+     * OrderController constructor.
      *
      * @param OrderService $orderService
      */
@@ -33,153 +30,407 @@ class OrderController extends Controller
     }
 
     /**
-     * Display a listing of the user's orders.
+     * Display a listing of the resource.
      *
      * @param Request $request
-     * @return \Illuminate\Http\Resources\Json\AnonymousResourceCollection
+     * @return JsonResponse
      */
-    public function index(Request $request): \Illuminate\Http\Resources\Json\AnonymousResourceCollection
-    {
-        $orders = Order::with(['products', 'orderProducts'])
-            ->where('user_id', Auth::id())
-            ->when($request->filled('status'), function ($query) use ($request) {
-                $query->where('status', $request->get('status'));
-            })
-            ->orderBy('created_at', 'desc')
-            ->paginate($request->get('per_page', 15));
-
-        return OrderResource::collection($orders);
-    }
-
-    /**
-     * Store a newly created order in storage.
-     *
-     * @param StoreOrderRequest $request
-     * @return OrderResource|\Illuminate\Http\JsonResponse
-     */
-    public function store(StoreOrderRequest $request): OrderResource|\Illuminate\Http\JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
-            DB::beginTransaction();
-
-            // Create order
-            $order = Order::create([
-                'user_id' => Auth::id(),
-                'total_amount' => 0,
-                'status' => $request->get('status', 'pending'),
+            $filters = $request->only([
+                'status',
+                'min_amount',
+                'max_amount',
+                'start_date',
+                'end_date',
+                'sort_by',
+                'sort_direction'
             ]);
 
-            $totalAmount = 0;
-            $products = $request->get('products', []);
+            $perPage = min($request->get('per_page', 15), 100);
 
-            foreach ($products as $productData) {
-                $product = Product::findOrFail($productData['product_id']);
-                $quantity = $productData['quantity'];
+            $orders = $this->orderService->getOrdersForApi($filters, $perPage);
 
-                // Check stock availability
-                if ($product->stock < $quantity) {
-                    throw new \Exception("Insufficient stock for product: {$product->name}");
-                }
-
-                // Create order product
-                $order->orderProducts()->create([
-                    'product_id' => $product->id,
-                    'quantity' => $quantity,
-                    'price' => $product->price,
-                ]);
-
-                // Update product stock
-                $product->decrement('stock', $quantity);
-
-                $totalAmount += ($product->price * $quantity);
-            }
-
-            // Update order total
-            $order->update(['total_amount' => $totalAmount]);
-
-            DB::commit();
-
-            return new OrderResource($order->load(['products', 'orderProducts']));
-        } catch (\Exception $exception) {
-            DB::rollBack();
-            report($exception);
-            return response()->json(['error' => $exception->getMessage()], Response::HTTP_BAD_REQUEST);
+            return ResponseBuilder::paginated($orders, 'Orders retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve orders');
         }
     }
 
     /**
-     * Display the specified order.
+     * Store a newly created resource in storage.
      *
-     * @param int $id
-     * @return OrderResource|\Illuminate\Http\JsonResponse
+     * @param StoreOrderRequest $request
+     * @return JsonResponse
      */
-    public function show(int $id): OrderResource|\Illuminate\Http\JsonResponse
+    public function store(StoreOrderRequest $request): JsonResponse
     {
-        $order = Order::with(['products', 'orderProducts'])
-            ->where('user_id', Auth::id())
-            ->findOrFail($id);
+        try {
+            $order = $this->orderService->createOrder($request->validated());
 
-        return new OrderResource($order);
+            return ResponseBuilder::created(
+                $this->orderService->getOrderForApi($order->id),
+                'Order created successfully'
+            );
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to create order');
+        }
     }
 
     /**
-     * Update the specified order in storage.
+     * Display the specified resource.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function show(int $id): JsonResponse
+    {
+        try {
+            // Check if user owns the order
+            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
+                return ResponseBuilder::forbidden('You do not have permission to view this order');
+            }
+
+            $order = $this->orderService->getOrderForApi($id);
+
+            return ResponseBuilder::success($order, 'Order retrieved successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Order not found');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve order');
+        }
+    }
+
+    /**
+     * Update the specified resource in storage.
      *
      * @param UpdateOrderRequest $request
      * @param int $id
-     * @return OrderResource|\Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
-    public function update(UpdateOrderRequest $request, int $id): OrderResource|\Illuminate\Http\JsonResponse
+    public function update(UpdateOrderRequest $request, int $id): JsonResponse
     {
         try {
-            $order = Order::where('user_id', Auth::id())->findOrFail($id);
-
-            // Only allow status updates for completed orders
-            if ($order->status === 'completed') {
-                return response()->json(['error' => 'Cannot modify completed order'], Response::HTTP_FORBIDDEN);
+            // Check if user owns the order
+            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
+                return ResponseBuilder::forbidden('You do not have permission to update this order');
             }
 
-            $order->update($request->validated());
+            $this->orderService->updateOrder($id, $request->validated());
 
-            return new OrderResource($order->load(['products', 'orderProducts']));
-        } catch (\Exception $exception) {
-            report($exception);
-            return response()->json(['error' => 'There is an error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return ResponseBuilder::updated(
+                $this->orderService->getOrderForApi($id),
+                'Order updated successfully'
+            );
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Order not found');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to update order');
         }
     }
 
     /**
-     * Remove the specified order from storage.
+     * Remove the specified resource from storage.
      *
      * @param int $id
-     * @return \Illuminate\Http\JsonResponse
+     * @return JsonResponse
      */
-    public function destroy(int $id): \Illuminate\Http\JsonResponse
+    public function destroy(int $id): JsonResponse
     {
         try {
-            $order = Order::where('user_id', Auth::id())->findOrFail($id);
-
-            // Only allow deletion of pending orders
-            if ($order->status !== 'pending') {
-                return response()->json(['error' => 'Cannot delete non-pending order'], Response::HTTP_FORBIDDEN);
+            // Check if user owns the order
+            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
+                return ResponseBuilder::forbidden('You do not have permission to delete this order');
             }
 
-            DB::beginTransaction();
+            $this->orderService->deleteOrder($id);
 
-            // Restore product stock
-            foreach ($order->orderProducts as $orderProduct) {
-                $orderProduct->product->increment('stock', $orderProduct->quantity);
+            return ResponseBuilder::deleted('Order deleted successfully');
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Order not found');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to delete order');
+        }
+    }
+
+    /**
+     * Get user's orders.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function myOrders(Request $request): JsonResponse
+    {
+        try {
+            $perPage = min($request->get('per_page', 15), 100);
+
+            $orders = $this->orderService->getUserOrdersForApi($perPage);
+
+            return ResponseBuilder::paginated($orders, 'Your orders retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve your orders');
+        }
+    }
+
+    /**
+     * Cancel an order.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function cancel(int $id): JsonResponse
+    {
+        try {
+            // Check if user owns the order
+            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
+                return ResponseBuilder::forbidden('You do not have permission to cancel this order');
             }
 
-            $order->delete();
+            $order = $this->orderService->cancelOrder($id);
 
-            DB::commit();
+            return ResponseBuilder::updated(
+                $this->orderService->getOrderForApi($order->id),
+                'Order cancelled successfully'
+            );
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Order not found');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to cancel order');
+        }
+    }
 
-            return response()->json(['message' => 'Order deleted successfully'], Response::HTTP_OK);
-        } catch (\Exception $exception) {
-            DB::rollBack();
-            report($exception);
-            return response()->json(['error' => 'There is an error.'], Response::HTTP_INTERNAL_SERVER_ERROR);
+    /**
+     * Complete an order.
+     *
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function complete(int $id): JsonResponse
+    {
+        try {
+            // Check if user owns the order
+            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
+                return ResponseBuilder::forbidden('You do not have permission to complete this order');
+            }
+
+            $order = $this->orderService->completeOrder($id);
+
+            return ResponseBuilder::updated(
+                $this->orderService->getOrderForApi($order->id),
+                'Order completed successfully'
+            );
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Order not found');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to complete order');
+        }
+    }
+
+    /**
+     * Get orders by status.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function byStatus(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'status' => 'required|in:pending,completed,cancelled'
+            ]);
+
+            $status = $request->get('status');
+            $orders = $this->orderService->getUserOrdersByStatus(Auth::id(), $status);
+
+            return ResponseBuilder::collection($orders, "Orders with status '{$status}' retrieved successfully");
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve orders by status');
+        }
+    }
+
+    /**
+     * Get order statistics.
+     *
+     * @return JsonResponse
+     */
+    public function statistics(): JsonResponse
+    {
+        try {
+            $statistics = $this->orderService->getOrdersStatistics(Auth::id());
+
+            return ResponseBuilder::success($statistics, 'Order statistics retrieved successfully');
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve order statistics');
+        }
+    }
+
+    /**
+     * Get monthly order statistics.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function monthlyStatistics(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'year' => 'required|integer|min:2020|max:' . (date('Y') + 1)
+            ]);
+
+            $year = $request->get('year');
+            $statistics = $this->orderService->getMonthlyOrderStatistics($year, Auth::id());
+
+            return ResponseBuilder::success($statistics, 'Monthly order statistics retrieved successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve monthly order statistics');
+        }
+    }
+
+    /**
+     * Get recent orders.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function recent(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'days' => 'sometimes|integer|min:1|max:365'
+            ]);
+
+            $days = $request->get('days', 7);
+            $orders = $this->orderService->getRecentOrders($days);
+
+            return ResponseBuilder::collection($orders, 'Recent orders retrieved successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve recent orders');
+        }
+    }
+
+    /**
+     * Get orders by date range.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function byDateRange(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'start_date' => 'required|date',
+                'end_date' => 'required|date|after_or_equal:start_date'
+            ]);
+
+            $startDate = $request->get('start_date');
+            $endDate = $request->get('end_date');
+
+            $orders = $this->orderService->getOrdersByDateRange($startDate, $endDate);
+
+            return ResponseBuilder::collection($orders, 'Orders by date range retrieved successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve orders by date range');
+        }
+    }
+
+    /**
+     * Get orders by amount range.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function byAmountRange(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'min_amount' => 'required|numeric|min:0',
+                'max_amount' => 'required|numeric|gte:min_amount'
+            ]);
+
+            $minAmount = $request->get('min_amount');
+            $maxAmount = $request->get('max_amount');
+
+            $orders = $this->orderService->getOrdersByAmountRange($minAmount, $maxAmount);
+
+            return ResponseBuilder::collection($orders, 'Orders by amount range retrieved successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to retrieve orders by amount range');
+        }
+    }
+
+    /**
+     * Update order status.
+     *
+     * @param Request $request
+     * @param int $id
+     * @return JsonResponse
+     */
+    public function updateStatus(Request $request, int $id): JsonResponse
+    {
+        try {
+            $request->validate([
+                'status' => 'required|in:pending,completed,cancelled'
+            ]);
+
+            // Check if user owns the order
+            if (!$this->orderService->userOwnsOrder($id, Auth::id())) {
+                return ResponseBuilder::forbidden('You do not have permission to update this order');
+            }
+
+            $order = $this->orderService->updateOrderStatus($id, $request->get('status'));
+
+            return ResponseBuilder::updated(
+                $this->orderService->getOrderForApi($order->id),
+                'Order status updated successfully'
+            );
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return ResponseBuilder::notFound('Order not found');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to update order status');
+        }
+    }
+
+    /**
+     * Calculate total revenue.
+     *
+     * @param Request $request
+     * @return JsonResponse
+     */
+    public function totalRevenue(Request $request): JsonResponse
+    {
+        try {
+            $request->validate([
+                'start_date' => 'sometimes|date',
+                'end_date' => 'sometimes|date|after_or_equal:start_date'
+            ]);
+
+            $startDate = $request->get('start_date');
+            $endDate = $request->get('end_date');
+
+            $revenue = $this->orderService->calculateTotalRevenue($startDate, $endDate);
+
+            return ResponseBuilder::success([
+                'total_revenue' => $revenue,
+                'start_date' => $startDate,
+                'end_date' => $endDate
+            ], 'Total revenue calculated successfully');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return ResponseBuilder::validationError($e->errors());
+        } catch (\Exception $e) {
+            return ResponseBuilder::exception($e, 'Failed to calculate total revenue');
         }
     }
 }
